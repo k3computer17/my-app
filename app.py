@@ -2,190 +2,174 @@ import streamlit as st
 import pandas as pd
 from datetime import datetime
 
-st.set_page_config(page_title="Udhaar & Payment Manager", layout="wide")
+st.set_page_config(page_title="Udhaar & Payment System", layout="wide")
 
-# Custom CSS for Colorful Styling & Cards Grid
-st.markdown("""
-    <style>
-    .main {
-        background-color: #f8f9fa;
-    }
-    .dena-card {
-        background-color: #ffebee;
-        border-left: 5px solid #ef5350;
-        padding: 15px;
-        border-radius: 10px;
-        margin-bottom: 15px;
-        box-shadow: 2px 2px 5px rgba(0,0,0,0.05);
-    }
-    .lena-card {
-        background-color: #e8f5e9;
-        border-left: 5px solid #66bb6a;
-        padding: 15px;
-        border-radius: 10px;
-        margin-bottom: 15px;
-        box-shadow: 2px 2px 5px rgba(0,0,0,0.05);
-    }
-    .card-title {
-        font-size: 18px;
-        font-weight: bold;
-        color: #333;
-    }
-    .badge-dena {
-        background-color: #e53935;
-        color: white;
-        padding: 3px 8px;
-        border-radius: 5px;
-        font-size: 12px;
-    }
-    .badge-lena {
-        background-color: #43a047;
-        color: white;
-        padding: 3px 8px;
-        border-radius: 5px;
-        font-size: 12px;
-    }
-    </style>
-""", unsafe_allow_html=True)
+st.title("💼 Client Profile & Payment Management System")
 
-st.title("🌈 Colorful Udhaar & Payment Manager")
-
-# Session state initialization
+# Session States for database
+if "clients" not in st.session_state:
+    st.session_state.clients = {}  # Mobile number as Key
 if "transactions" not in st.session_state:
     st.session_state.transactions = []
 
-# Sidebar - Entry Form
-st.sidebar.header("📝 Nayi Entry Karein")
+# Main Tabs for Clean Workflow
+tab1, tab2, tab3, tab4 = st.tabs([
+    "👤 1. Client Profile Banayein", 
+    "💸 2. Payment Entry Karein", 
+    "🔍 3. Grid View & Search", 
+    "🖨️ 4. Print Receipt / Form"
+])
 
-trans_type = st.sidebar.radio("Transaction Type:", ["Dena Hai (Udhaar)", "Lena Hai (Payment)"])
-full_name = st.sidebar.text_input("Grahak ka Naam (Client Name):")
-father_name = st.sidebar.text_input("Pita ka Naam (Father's Name):")
-mobile_no = st.sidebar.text_input("Mobile Number:")
-aadhaar_no = st.sidebar.text_input("Aadhaar Card Number:")
-address = st.sidebar.text_area("Pata (Address):")
-
-amount = st.sidebar.number_input("Rashi / Amount (₹):", min_value=0, step=100)
-remarks = st.sidebar.text_input("Vivran (Note / Description):")
-
-# Photo Capture Option
-camera_photo = st.sidebar.camera_input("📸 Grahak ki photo kheinchein")
-
-if st.sidebar.button("💾 Save Entry"):
-    if full_name and mobile_no and amount > 0:
-        new_entry = {
-            "ID": len(st.session_state.transactions) + 1,
-            "Date": datetime.now().strftime("%Y-%m-%d %H:%M"),
-            "Type": trans_type,
-            "Name": full_name,
-            "Father Name": father_name,
-            "Mobile": mobile_no,
-            "Aadhaar": aadhaar_no,
-            "Address": address,
-            "Amount": amount,
-            "Remarks": remarks,
-            "Photo": camera_photo
-        }
-        st.session_state.transactions.append(new_entry)
-        st.sidebar.success("Entry Successfully Add Ho Gayi!")
-    else:
-        st.sidebar.error("Kripya Naam, Mobile aur Amount zaroor bharein.")
-
-# --- Main Dashboard ---
-tab1, tab2 = st.tabs(["🔲 Grid Records & Search", "🧾 Print Form / Slip"])
-
+# ==================== TAB 1: CLIENT PROFILE ====================
 with tab1:
-    # Top Stats
-    if st.session_state.transactions:
-        df_temp = pd.DataFrame(st.session_state.transactions)
-        dena_total = df_temp[df_temp["Type"] == "Dena Hai (Udhaar)"]["Amount"].sum()
-        lena_total = df_temp[df_temp["Type"] == "Lena Hai (Payment)"]["Amount"].sum()
-        
-        c1, c2, c3 = st.columns(3)
-        c1.metric("🔴 Kul Dena Hai", f"₹{dena_total}")
-        c2.metric("🟢 Kul Lena Hai", f"₹{lena_total}")
-        c3.metric("📊 Total Entries", len(st.session_state.transactions))
-        st.markdown("---")
-
-    # Search Bar Section
-    st.subheader("🔍 Search Records")
-    search_query = st.text_input("📱 Mobile Number ya Naam se search karein:", "").strip().lower()
-
-    # Filtering logic
-    filtered_list = st.session_state.transactions
-    if search_query:
-        filtered_list = [
-            t for t in st.session_state.transactions 
-            if search_query in t["Mobile"].lower() or search_query in t["Name"].lower() or search_query in t["Aadhaar"].lower()
-        ]
-
-    st.subheader("📋 Records Grid View")
+    st.header("👤 Naye Client Ki Profile Banayein")
     
-    if filtered_list:
-        # Display as Grid Layout (3 Columns per row)
-        cols = st.columns(3)
-        for idx, item in enumerate(filtered_list):
-            col = cols[idx % 3]
-            card_class = "dena-card" if item["Type"] == "Dena Hai (Udhaar)" else "lena-card"
-            badge_class = "badge-dena" if item["Type"] == "Dena Hai (Udhaar)" else "badge-lena"
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        c_mobile = st.text_input("📱 Mobile Number (Unique Key):", key="c_mob")
+        c_name = st.text_input("👤 Client ka Poora Naam:", key="c_name")
+        c_father = st.text_input("👨 Pita ka Naam:", key="c_f")
+        c_aadhaar = st.text_input("🪪 Aadhaar Card Number:", key="c_adh")
+        c_address = st.text_area("🏠 Pata (Address):", key="c_add")
+        
+    with col2:
+        st.subheader("📸 Live Photo Capture")
+        c_photo = st.camera_input("Client ki photo kheinchein", key="c_cam")
+        
+        if st.button("💾 Save Client Profile", type="primary"):
+            if c_mobile and c_name:
+                st.session_state.clients[c_mobile] = {
+                    "Name": c_name,
+                    "Father Name": c_father,
+                    "Mobile": c_mobile,
+                    "Aadhaar": c_aadhaar,
+                    "Address": c_address,
+                    "Photo": c_photo,
+                    "Created_At": datetime.now().strftime("%Y-%m-%d %H:%M")
+                }
+                st.success(f"Profile saved successfully for {c_name}!")
+            else:
+                st.error("Mobile Number aur Naam bharna zaroori hai.")
+
+# ==================== TAB 2: PAYMENT ENTRY ====================
+with tab2:
+    st.header("💸 Payment / Udhaar Entry Karein")
+    
+    if not st.session_state.clients:
+        st.warning("Pehle Tab 1 me jaakar kam se kam ek Client Profile banayein.")
+    else:
+        # Select Client
+        client_options = {mob: f"{data['Name']} ({mob})" for mob, data in st.session_state.clients.items()}
+        selected_mob = st.selectbox("Client Select Karein:", options=list(client_options.keys()), format_func=lambda x: client_options[x])
+        
+        client_data = st.session_state.clients[selected_mob]
+        
+        # Display selected client summary
+        st.info(f"**Selected Client:** {client_data['Name']} | **Pita:** {client_data['Father Name']} | **Aadhaar:** {client_data['Aadhaar']}")
+        
+        col_p1, col_p2 = st.columns(2)
+        with col_p1:
+            pay_type = st.radio("Transaction Type:", ["Dena Hai (Given / Udhaar)", "Lena Hai (Received / Payment)"])
+            amount = st.number_input("Rashi / Amount (₹):", min_value=1, step=100)
+            remarks = st.text_input("Vivran (Note / Description):")
             
+            if st.button("💾 Transaction Save Karein", type="primary"):
+                trans_entry = {
+                    "Trans_ID": len(st.session_state.transactions) + 1,
+                    "Date": datetime.now().strftime("%Y-%m-%d %H:%M"),
+                    "Mobile": selected_mob,
+                    "Client_Name": client_data["Name"],
+                    "Type": pay_type,
+                    "Amount": amount,
+                    "Remarks": remarks
+                }
+                st.session_state.transactions.append(trans_entry)
+                st.success("Payment entry successfully save ho gayi!")
+
+# ==================== TAB 3: GRID VIEW & SEARCH ====================
+with tab3:
+    st.header("🔍 Search & Client Ledger Grid")
+    
+    search_q = st.text_input("🔎 Search (Mobile / Name / Aadhaar):", "").lower().strip()
+    
+    if st.session_state.clients:
+        grid_cols = st.columns(3)
+        idx = 0
+        
+        for mob, profile in st.session_state.clients.items():
+            # Search Filter Logic
+            if search_q and (search_q not in mob and search_q not in profile["Name"].lower() and search_q not in profile["Aadhaar"].lower()):
+                continue
+            
+            # Calculate Total Dena / Lena for this client
+            c_trans = [t for t in st.session_state.transactions if t["Mobile"] == mob]
+            dena_sum = sum(t["Amount"] for t in c_trans if t["Type"] == "Dena Hai (Given / Udhaar)")
+            lena_sum = sum(t["Amount"] for t in c_trans if t["Type"] == "Lena Hai (Received / Payment)")
+            
+            col = grid_cols[idx % 3]
             with col:
                 st.markdown(f"""
-                <div class="{card_class}">
-                    <span class="{badge_class}">{item['Type']}</span>
-                    <div class="card-title" style="margin-top:8px;">👤 {item['Name']}</div>
-                    <p style="margin: 2px 0;"><b>Pita:</b> {item['Father Name']}</p>
-                    <p style="margin: 2px 0;"><b>📱 Mobile:</b> {item['Mobile']}</p>
-                    <p style="margin: 2px 0;"><b>🪪 Aadhaar:</b> {item['Aadhaar']}</p>
-                    <p style="margin: 2px 0; font-size: 18px; color:#d32f2f;"><b>Amount: ₹{item['Amount']}</b></p>
-                    <p style="margin: 2px 0; font-size:12px; color:#666;">🗓️ {item['Date']}</p>
+                <div style="background-color:#ffffff; border:1px solid #ddd; padding:15px; border-radius:10px; margin-bottom:15px; box-shadow:2px 2px 5px rgba(0,0,0,0.05);">
+                    <h4 style="margin:0; color:#1e88e5;">👤 {profile['Name']}</h4>
+                    <p style="margin:3px 0;"><b>📱 Mobile:</b> {profile['Mobile']}</p>
+                    <p style="margin:3px 0;"><b>👨 Pita:</b> {profile['Father Name']}</p>
+                    <p style="margin:3px 0;"><b>🪪 Aadhaar:</b> {profile['Aadhaar']}</p>
+                    <hr style="margin:8px 0;">
+                    <p style="margin:3px 0; color:#d32f2f;"><b>🔴 Kul Dena:</b> ₹{dena_sum}</p>
+                    <p style="margin:3px 0; color:#2e7d32;"><b>🟢 Kul Lena:</b> ₹{lena_sum}</p>
                 </div>
                 """, unsafe_allow_html=True)
-                
-                if item["Photo"]:
-                    st.image(item["Photo"], width=120)
+                if profile["Photo"]:
+                    st.image(profile["Photo"], width=100)
+            idx += 1
     else:
-        st.info("Koi record nahi mila.")
+        st.info("Abhi koi Client Profile nahi hai.")
 
-with tab2:
-    st.subheader("🖨️ Receipt / Slip Print")
+# ==================== TAB 4: PRINT RECEIPT ====================
+with tab4:
+    st.header("🖨️ Payment Slip / Form Print")
+    
     if st.session_state.transactions:
-        record_names = [f"{t['Name']} ({t['Mobile']}) - ₹{t['Amount']}" for t in st.session_state.transactions]
-        selected_index = st.selectbox("Print Karne Ke Liye Select Karein:", range(len(st.session_state.transactions)), format_func=lambda x: record_names[x])
+        # Choose transaction to print
+        trans_options = [f"ID #{t['Trans_ID']} - {t['Client_Name']} - ₹{t['Amount']} ({t['Type']})" for t in st.session_state.transactions]
+        selected_t_idx = st.selectbox("Print karne ke liye Transaction chunein:", range(len(trans_options)), format_func=lambda x: trans_options[x])
         
-        selected_item = st.session_state.transactions[selected_index]
+        t_data = st.session_state.transactions[selected_t_idx]
+        p_data = st.session_state.clients.get(t_data["Mobile"], {})
         
-        # Printable Receipt Layout
+        # Printable Receipt Design
         st.markdown("---")
-        rec_col1, rec_col2 = st.columns([2, 1])
+        rc1, rc2 = st.columns([2, 1])
         
-        with rec_col1:
-            st.markdown(f"## 🧾 **Payment / Udhaar Slip**")
-            st.write(f"**Slip Date:** {selected_item['Date']}")
-            st.write(f"**Transaction Type:** {selected_item['Type']}")
-            st.write(f"**Grahak Name:** {selected_item['Name']}")
-            st.write(f"**Pita ka Naam:** {selected_item['Father Name']}")
-            st.write(f"**Mobile:** {selected_item['Mobile']}")
-            st.write(f"**Aadhaar Number:** {selected_item['Aadhaar']}")
-            st.write(f"**Address:** {selected_item['Address']}")
-            st.write(f"**Rashi (Amount):** ₹{selected_item['Amount']}")
-            st.write(f"**Note:** {selected_item['Remarks']}")
+        with rc1:
+            st.markdown("## 🧾 **PAYMENT RECEIPT**")
+            st.write(f"**Receipt Date:** {t_data['Date']}")
+            st.write(f"**Transaction ID:** #{t_data['Trans_ID']}")
+            st.write(f"**Transaction Type:** {t_data['Type']}")
+            st.write(f"**Grahak Name:** {t_data['Client_Name']}")
+            st.write(f"**Pita ka Naam:** {p_data.get('Father Name', 'N/A')}")
+            st.write(f"**Mobile:** {t_data['Mobile']}")
+            st.write(f"**Aadhaar Number:** {p_data.get('Aadhaar', 'N/A')}")
+            st.write(f"**Address:** {p_data.get('Address', 'N/A')}")
+            st.write(f"**Rashi (Amount):** ₹{t_data['Amount']}")
+            st.write(f"**Note:** {t_data['Remarks']}")
             
-        with rec_col2:
-            if selected_item['Photo']:
-                st.image(selected_item['Photo'], caption="Grahak Photo", width=180)
+        with rc2:
+            if p_data.get("Photo"):
+                st.image(p_data["Photo"], caption="Grahak Photo", width=180)
             else:
-                st.write("📷 Photo upload nahi ki gayi")
+                st.write("📷 Photo upload nahi hai")
 
         st.markdown("---")
         
-        # Print Button
         st.components.v1.html(
             """
-            <button onclick="window.print()" style="padding:12px 28px; font-size:16px; background-color:#ff4b4b; color:white; border:none; border-radius:8px; cursor:pointer; font-weight:bold;">
-                🖨️ Form Print / PDF Save Karein
+            <button onclick="window.print()" style="padding:12px 28px; font-size:16px; background-color:#2196F3; color:white; border:none; border-radius:8px; cursor:pointer; font-weight:bold;">
+                🖨️ Form / Slip Print Karein
             </button>
             """,
             height=60,
         )
     else:
-        st.info("Print karne ke liye koi record nahi hai.")
+        st.info("Print karne ke liye abhi koi transaction entry nahi hai.")
